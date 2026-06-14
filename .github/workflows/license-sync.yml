@@ -8,9 +8,14 @@ on:
         required: true
         type: string
       screen-path:
-        description: Path to the licences screen file, used in the error message (e.g. "app/src/main/java/.../LicensesScreen.kt").
+        description: Path (or description) of the licences screen file, used in the error message.
         required: true
         type: string
+      skip-if-file-missing:
+        description: If true, skip the check entirely when no file named screen-file exists yet in the repo.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,6 +30,13 @@ jobs:
 
       - name: Fail if ${{ inputs.screen-file }} was not updated
         run: |
+          if [ "${{ inputs.skip-if-file-missing }}" = "true" ]; then
+            if ! find . -name "${{ inputs.screen-file }}" -not -path "*/.git/*" -not -path "*/build/*" | grep -q .; then
+              echo "No ${{ inputs.screen-file }} found, skipping. Create one when you implement library attribution."
+              exit 0
+            fi
+          fi
+
           CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           if echo "$CHANGED" | grep -q "${{ inputs.screen-file }}"; then
             echo "${{ inputs.screen-file }} was updated alongside libs.versions.toml."

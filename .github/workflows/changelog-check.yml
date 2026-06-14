@@ -2,6 +2,15 @@ name: Changelog bump check
 
 on:
   workflow_call:
+    inputs:
+      mode:
+        description: >
+          "fragment" runs check_changelog_fragment.py against changelog/unreleased/
+          (choreDash-Android, GoFlo style). "file" checks that CHANGELOG.md itself
+          was updated (Android-App-Template style).
+        required: false
+        type: string
+        default: fragment
 
 permissions:
   contents: read
@@ -15,4 +24,16 @@ jobs:
           fetch-depth: 0
 
       - name: Check for a changelog fragment
+        if: inputs.mode == 'fragment'
         run: python3 check_changelog_fragment.py origin/${{ github.base_ref }}
+
+      - name: Fail if CHANGELOG.md was not updated
+        if: inputs.mode == 'file'
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED" | grep -q "^CHANGELOG.md$"; then
+            echo "CHANGELOG.md was updated alongside code changes."
+          else
+            echo "::error::Code was changed but CHANGELOG.md was not updated. Add a changelog entry in CHANGELOG.md before merging."
+            exit 1
+          fi
