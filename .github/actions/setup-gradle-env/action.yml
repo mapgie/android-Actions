@@ -1,0 +1,41 @@
+name: Setup Android Gradle environment
+description: >
+  Optionally checks out the repository, installs JDK 17 and Gradle, and writes
+  local.properties so Gradle builds don't need a full Android SDK install.
+inputs:
+  checkout:
+    description: Whether to check out the repository. Set to 'false' if the calling workflow already checked it out.
+    required: false
+    default: 'true'
+  fetch-depth:
+    description: Number of commits to fetch when checking out (passed through to actions/checkout).
+    required: false
+    default: '1'
+  gradle-version:
+    description: Gradle version to install.
+    required: false
+    default: '8.13'
+  cache-read-only:
+    description: Whether the Gradle build cache should be read-only.
+    required: false
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - if: inputs.checkout == 'true'
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.0
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 # v3.5.0
+      with:
+        gradle-version: ${{ inputs.gradle-version }}
+        cache-read-only: ${{ inputs.cache-read-only }}
+
+    - shell: bash
+      run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties

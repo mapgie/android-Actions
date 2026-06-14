@@ -1,0 +1,102 @@
+name: Build & Release APK
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: Display name used for the APK filename and GitHub Release title (e.g. "Dash", "GoFlo").
+        required: true
+        type: string
+      gradle-version:
+        description: Gradle version to install.
+        required: false
+        type: string
+        default: '8.13'
+      cache-read-only:
+        description: Whether the Gradle build cache should be read-only. Accepts an expression string.
+        required: false
+        type: string
+        default: 'false'
+      run-a11y-check:
+        description: Whether to run `python3 a11y_check.py --fails-only`.
+        required: false
+        type: boolean
+        default: true
+      build-devtools:
+        description: Whether to also build and release the :devtools:assembleDebug APK on workflow_dispatch.
+        required: false
+        type: boolean
+        default: false
+      devtools-app-name:
+        description: Display name used for the devtools APK filename when build-devtools is true.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@e1cf6dd0bcd0aa737c4b2b3d12a48dec00f5da92 # main
+        with:
+          gradle-version: ${{ inputs.gradle-version }}
+          cache-read-only: ${{ inputs.cache-read-only }}
+
+      - name: Accessibility role check
+        if: inputs.run-a11y-check
+        run: python3 a11y_check.py --fails-only
+
+      - name: Check version is new
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | grep -oP '"[^"]+"' | tr -d '"')
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          if gh release view "v${VERSION}" &>/dev/null; then
+            echo "::error::v${VERSION} is already released. Bump versionName (and versionCode) in app/build.gradle.kts before merging."
+            exit 1
+          fi
+          echo "Version ${VERSION} is new."
+
+      - name: Build debug APK(s)
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.build-devtools }}" = "true" ]; then
+            gradle :app:assembleDebug :devtools:assembleDebug --no-daemon
+          else
+            gradle :app:assembleDebug --no-daemon
+          fi
+
+      - name: Run unit tests
+        run: gradle :app:test --no-daemon
+
+      - name: Run lint
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Rename APK(s) and create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK_NAME="${{ inputs.app-name }}-${{ env.VERSION }}-debug.apk"
+          mv app/build/outputs/apk/debug/app-debug.apk \
+             "app/build/outputs/apk/debug/${APK_NAME}"
+          ASSETS=("app/build/outputs/apk/debug/${APK_NAME}")
+
+          if [ "${{ inputs.build-devtools }}" = "true" ]; then
+            DEV_APK="${{ inputs.devtools-app-name }}-${{ env.VERSION }}-debug.apk"
+            mv devtools/build/outputs/apk/debug/devtools-debug.apk \
+               "devtools/build/outputs/apk/debug/${DEV_APK}"
+            ASSETS+=("devtools/build/outputs/apk/debug/${DEV_APK}")
+          fi
+
+          gh release create "v${{ env.VERSION }}" \
+            "${ASSETS[@]}" \
+            --title "${{ inputs.app-name }} v${{ env.VERSION }}" \
+            --notes "Debug build. Enable 'Install unknown apps' in Android settings to sideload."
