@@ -1,0 +1,46 @@
+name: Licence screen sync check
+
+on:
+  workflow_call:
+    inputs:
+      screen-file:
+        description: Filename of the licences screen that must be updated alongside gradle/libs.versions.toml (e.g. "LicensesScreen.kt").
+        required: true
+        type: string
+      screen-path:
+        description: Path (or description) of the licences screen file, used in the error message.
+        required: true
+        type: string
+      skip-if-file-missing:
+        description: If true, skip the check entirely when no file named screen-file exists yet in the repo.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Fail if ${{ inputs.screen-file }} was not updated
+        run: |
+          if [ "${{ inputs.skip-if-file-missing }}" = "true" ]; then
+            if ! find . -name "${{ inputs.screen-file }}" -not -path "*/.git/*" -not -path "*/build/*" | grep -q .; then
+              echo "No ${{ inputs.screen-file }} found, skipping. Create one when you implement library attribution."
+              exit 0
+            fi
+          fi
+
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED" | grep -q "${{ inputs.screen-file }}"; then
+            echo "${{ inputs.screen-file }} was updated alongside libs.versions.toml."
+          else
+            echo "::error::gradle/libs.versions.toml changed but ${{ inputs.screen-file }} was not updated. Add or remove the library in ${{ inputs.screen-path }}."
+            exit 1
+          fi

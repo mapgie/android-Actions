@@ -1,0 +1,47 @@
+name: CodeQL
+
+on:
+  workflow_call:
+    inputs:
+      codeql-config-path:
+        description: Path to the CodeQL config file (relative to the repo root).
+        required: false
+        type: string
+        default: ./.github/codeql/codeql-config.yml
+      gradle-version:
+        description: Gradle version to install.
+        required: false
+        type: string
+        default: '8.13'
+
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (java-kotlin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          languages: java-kotlin
+          config-file: ${{ inputs.codeql-config-path }}
+
+      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@dfe7e8b20c5fc8e1b8053c9e56776b77307ff482 # v1
+        with:
+          checkout: 'false'
+          gradle-version: ${{ inputs.gradle-version }}
+          cache-read-only: 'false'
+
+      - name: Build
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          category: /language:java-kotlin
