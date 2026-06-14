@@ -11,6 +11,10 @@ inputs:
     description: Number of commits to fetch when checking out (passed through to actions/checkout).
     required: false
     default: '1'
+  ref:
+    description: Git ref or SHA to check out (passed through to actions/checkout). Empty uses the default for the triggering event.
+    required: false
+    default: ''
   gradle-version:
     description: Gradle version to install.
     required: false
@@ -25,6 +29,7 @@ runs:
     - if: inputs.checkout == 'true'
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
+        ref: ${{ inputs.ref }}
         fetch-depth: ${{ inputs.fetch-depth }}
 
     - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
