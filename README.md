@@ -18,20 +18,24 @@ pinned to a commit SHA on this repo.
 
 ### `android-build-release.yml`
 
-Builds the debug APK, runs the accessibility check, unit tests and lint, and
-(on `workflow_dispatch`) creates a GitHub Release with the built APK(s).
+Builds the debug APK, runs the accessibility check, unit tests and lint, and,
+if `create-release` is true, creates a GitHub Release with the built APK(s).
 
 | Input | Required | Default | Description |
 |---|---|---|---|
 | `app-name` | yes | - | Display name used for the APK filename and release title |
+| `ref` | no | `''` | Git ref or SHA to check out. Empty uses the default for the triggering event |
+| `create-release` | no | `false` | Check the version is new, build release artifact(s), and create a GitHub Release |
 | `gradle-version` | no | `8.13` | Gradle version to install |
 | `cache-read-only` | no | `'false'` | Whether the Gradle cache is read-only (accepts an expression string) |
 | `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
-| `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` |
+| `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` if `create-release` is true |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
 
 Requires `permissions: contents: write` in the caller and a
-`workflow_dispatch` + path-filtered `pull_request` trigger.
+`workflow_dispatch` + path-filtered `pull_request` trigger. Pass
+`create-release: ${{ github.event_name == 'workflow_dispatch' }}` to keep the
+previous behaviour of only releasing on manual dispatch.
 
 ### `codeql.yml`
 
@@ -68,10 +72,24 @@ to the licences screen.
 | `screen-file` | yes | Filename that must change alongside `gradle/libs.versions.toml`, e.g. `LicensesScreen.kt` |
 | `screen-path` | yes | Full path to that file, used in the error message |
 
-### `prepare-release.yml`
+### `release.yml`
 
-Consolidates changelog fragments and opens a release PR. No inputs. Requires
-the calling repo to have `consolidate_changelog.py` and `changelog/unreleased/`.
+Consolidates pending changelog fragments, bumps the version, and pushes the
+release commit directly to the triggering branch (no PR). If there were
+fragments to consolidate, it then builds, tests, lints, and creates a GitHub
+Release from that commit by calling `android-build-release.yml` with
+`create-release: true`. If there were no fragments, the build step is skipped
+entirely. Requires the calling repo to have `consolidate_changelog.py` and
+`changelog/unreleased/`, and `permissions: contents: write` in the caller.
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `app-name` | yes | - | Display name used for the APK filename and GitHub Release title |
+| `gradle-version` | no | `8.13` | Gradle version to install |
+| `cache-read-only` | no | `'false'` | Whether the Gradle cache is read-only (accepts an expression string) |
+| `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
+| `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` |
+| `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
 
 ## Releasing
 

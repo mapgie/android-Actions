@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: Display name used for the APK filename and GitHub Release title (e.g. "Dash", "GoFlo").
+        required: true
+        type: string
+      gradle-version:
+        description: Gradle version to install.
+        required: false
+        type: string
+        default: '8.13'
+      cache-read-only:
+        description: Whether the Gradle build cache should be read-only. Accepts an expression string.
+        required: false
+        type: string
+        default: 'false'
+      run-a11y-check:
+        description: Whether to run `python3 a11y_check.py --fails-only`.
+        required: false
+        type: boolean
+        default: true
+      build-devtools:
+        description: Whether to also build and release the :devtools:assembleDebug APK.
+        required: false
+        type: boolean
+        default: false
+      devtools-app-name:
+        description: Display name used for the devtools APK filename when build-devtools is true.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      skip: ${{ steps.consolidate.outputs.skip }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Consolidate changelog fragments
+        id: consolidate
+        run: |
+          set +e
+          OUTPUT=$(python3 consolidate_changelog.py)
+          STATUS=$?
+          set -e
+          echo "$OUTPUT"
+          if [ "$STATUS" -ne 0 ]; then
+            exit 1
+          fi
+          if echo "$OUTPUT" | grep -q '^status=no_fragments'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "version=$(echo "$OUTPUT" | grep '^version=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push release
+        if: steps.consolidate.outputs.skip != 'true'
+        id: commit
+        run: |
+          VERSION="${{ steps.consolidate.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md app/build.gradle.kts changelog/unreleased
+          git commit -m "Release v${VERSION}"
+          git push origin HEAD:${{ github.ref_name }}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    permissions:
+      contents: write
+    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@4953298afee57e9338fa5232a80b5721ca65618b
+    with:
+      app-name: ${{ inputs.app-name }}
+      ref: ${{ needs.prepare.outputs.sha }}
+      create-release: true
+      gradle-version: ${{ inputs.gradle-version }}
+      cache-read-only: ${{ inputs.cache-read-only }}
+      run-a11y-check: ${{ inputs.run-a11y-check }}
+      build-devtools: ${{ inputs.build-devtools }}
+      devtools-app-name: ${{ inputs.devtools-app-name }}
