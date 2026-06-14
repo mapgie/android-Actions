@@ -85,7 +85,7 @@ jobs:
     if: needs.prepare.outputs.skip != 'true'
     permissions:
       contents: write
-    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@PLACEHOLDER
+    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@4953298afee57e9338fa5232a80b5721ca65618b
     with:
       app-name: ${{ inputs.app-name }}
       ref: ${{ needs.prepare.outputs.sha }}
