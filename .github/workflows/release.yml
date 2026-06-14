@@ -45,7 +45,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
-      skip: ${{ steps.consolidate.outputs.skip }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -63,13 +62,12 @@ jobs:
             exit 1
           fi
           if echo "$OUTPUT" | grep -q '^status=no_fragments'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::No changelog fragments to release. Nothing to do."
+            exit 1
           fi
           echo "version=$(echo "$OUTPUT" | grep '^version=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push release
-        if: steps.consolidate.outputs.skip != 'true'
         id: commit
         run: |
           VERSION="${{ steps.consolidate.outputs.version }}"
@@ -82,7 +80,6 @@ jobs:
 
   build:
     needs: prepare
-    if: needs.prepare.outputs.skip != 'true'
     permissions:
       contents: write
     uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@4953298afee57e9338fa5232a80b5721ca65618b
