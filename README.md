@@ -73,6 +73,19 @@ to the licences screen.
 Consolidates changelog fragments and opens a release PR. No inputs. Requires
 the calling repo to have `consolidate_changelog.py` and `changelog/unreleased/`.
 
+## Releasing
+
+After merging changes to `main`, run the `tag-release.yml` workflow via
+`workflow_dispatch` with the next semver `version` (e.g. `1.1.0`). It will:
+
+- validate that `version` matches `X.Y.Z`
+- create/update the annotated tag `vX.Y.Z` pointing at the current commit
+- move the floating major tag `vX` (e.g. `v1`) to the same commit
+
+Consumer repos pin to `mapgie/android-Actions/...@<sha> # vX`. Once the `vX`
+tag moves to a new commit, Dependabot's `github-actions` ecosystem in those
+repos will detect the update and open a PR bumping the pinned SHA.
+
 ## Composite actions (`.github/actions`)
 
 ### `setup-gradle-env`
