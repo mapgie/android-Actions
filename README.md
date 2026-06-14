@@ -75,11 +75,13 @@ to the licences screen.
 ### `release.yml`
 
 Consolidates pending changelog fragments, bumps the version, and pushes the
-release commit directly to the triggering branch (no PR). If there were
-fragments to consolidate, it then builds, tests, lints, and creates a GitHub
-Release from that commit by calling `android-build-release.yml` with
-`create-release: true`. If there were no fragments, the build step is skipped
-entirely. Requires the calling repo to have `consolidate_changelog.py` and
+release commit directly to the triggering branch (no PR). It then builds,
+tests, lints, and creates a GitHub Release from that commit by calling
+`android-build-release.yml` with `create-release: true`. If there are no
+fragments under `changelog/unreleased/`, the workflow fails immediately with
+"No changelog fragments to release" rather than reporting success with
+nothing released, since this workflow is only run manually when a release is
+expected. Requires the calling repo to have `consolidate_changelog.py` and
 `changelog/unreleased/`, and `permissions: contents: write` in the caller.
 
 | Input | Required | Default | Description |
