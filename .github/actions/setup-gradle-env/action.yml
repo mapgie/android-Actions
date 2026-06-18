@@ -38,6 +38,7 @@ runs:
         distribution: 'temurin'
 
     - uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 # v3.5.0
+      continue-on-error: true
       with:
         gradle-version: ${{ inputs.gradle-version }}
         cache-read-only: ${{ inputs.cache-read-only }}
