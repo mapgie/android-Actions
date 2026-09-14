@@ -17,6 +17,15 @@ on:
         required: false
         type: boolean
         default: false
+      sign-release:
+        description: >
+          Build `:app:assembleRelease` signed with the release keystore from the
+          RELEASE_* secrets, and publish that APK instead of the debug APK. The
+          caller must pass the secrets (`secrets: inherit` or an explicit mapping).
+          When false (the default) the existing debug-APK path is used unchanged.
+        required: false
+        type: boolean
+        default: false
       gradle-version:
         description: Gradle version to install.
         required: false
@@ -42,6 +51,19 @@ on:
         required: false
         type: string
         default: ''
+    secrets:
+      RELEASE_KEYSTORE_BASE64:
+        description: The release keystore (.jks) encoded with `base64 -w0`. Only read when sign-release is true.
+        required: false
+      RELEASE_STORE_PASSWORD:
+        description: Password of the release keystore. Only read when sign-release is true.
+        required: false
+      RELEASE_KEY_ALIAS:
+        description: Alias of the release key inside the keystore. Only read when sign-release is true.
+        required: false
+      RELEASE_KEY_PASSWORD:
+        description: Password of the release key. Only read when sign-release is true.
+        required: false
 
 permissions:
   contents: write
@@ -76,12 +98,52 @@ jobs:
           fi
           echo "Version ${VERSION} is new."
 
-      - name: Build debug APK(s)
+      # The app's build.gradle.kts reads RELEASE_STORE_FILE and the three
+      # RELEASE_*_PASSWORD / RELEASE_KEY_ALIAS variables for its release
+      # signingConfig, and falls back to the debug key when they are absent.
+      # The keystore is written under RUNNER_TEMP, which is wiped with the runner.
+      # A run without the secret (a pull request from a fork, or a repo that has
+      # not configured signing yet) still builds a release APK with the debug key,
+      # so the release build type is exercised on every PR; publishing such an APK
+      # as a release is refused by the "Verify release signature" step below.
+      - name: Decode release keystore
+        if: inputs.sign-release
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          if [ "${{ inputs.create-release }}" = "true" ] && [ "${{ inputs.build-devtools }}" = "true" ]; then
-            gradle :app:assembleDebug :devtools:assembleDebug --no-daemon
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::warning::RELEASE_KEYSTORE_BASE64 is not set; the release APK will be signed with the debug key and cannot be published as a release."
+            exit 0
+          fi
+          if [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_ALIAS" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is set but RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS or RELEASE_KEY_PASSWORD is missing."
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/release.jks"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          {
+            echo "RELEASE_STORE_FILE=$KEYSTORE"
+            echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+            echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "Release keystore decoded."
+
+      - name: Build APK(s)
+        run: |
+          if [ "${{ inputs.sign-release }}" = "true" ]; then
+            APP_TASK=":app:assembleRelease"
           else
-            gradle :app:assembleDebug --no-daemon
+            APP_TASK=":app:assembleDebug"
+          fi
+          if [ "${{ inputs.create-release }}" = "true" ] && [ "${{ inputs.build-devtools }}" = "true" ]; then
+            gradle "$APP_TASK" :devtools:assembleDebug --no-daemon
+          else
+            gradle "$APP_TASK" --no-daemon
           fi
 
       - name: Run unit tests
@@ -90,15 +152,40 @@ jobs:
       - name: Run lint
         run: gradle :app:lintDebug --no-daemon
 
+      - name: Verify release signature
+        if: inputs.sign-release
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          APKSIGNER=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | sort -V | tail -n 1)
+          "$APKSIGNER" verify --print-certs "$APK"
+          if "$APKSIGNER" verify --print-certs "$APK" | grep -q 'CN=Android Debug'; then
+            if [ "${{ inputs.create-release }}" = "true" ]; then
+              echo "::error::The release APK is signed with the debug key. Configure the RELEASE_* secrets before publishing a release; a debug-signed release would force every user to reinstall."
+              exit 1
+            fi
+            echo "::notice::Release APK is signed with the debug key (no RELEASE_* secrets in this run)."
+          else
+            echo "Release APK is signed with the release key."
+          fi
+
       - name: Rename APK(s) and create GitHub Release
         if: inputs.create-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          APK_NAME="${{ inputs.app-name }}-${{ env.VERSION }}-debug.apk"
-          mv app/build/outputs/apk/debug/app-debug.apk \
-             "app/build/outputs/apk/debug/${APK_NAME}"
-          ASSETS=("app/build/outputs/apk/debug/${APK_NAME}")
+          if [ "${{ inputs.sign-release }}" = "true" ]; then
+            APK_NAME="${{ inputs.app-name }}-${{ env.VERSION }}.apk"
+            mv app/build/outputs/apk/release/app-release.apk \
+               "app/build/outputs/apk/release/${APK_NAME}"
+            ASSETS=("app/build/outputs/apk/release/${APK_NAME}")
+            NOTES="Release build. Enable 'Install unknown apps' in Android settings to sideload."
+          else
+            APK_NAME="${{ inputs.app-name }}-${{ env.VERSION }}-debug.apk"
+            mv app/build/outputs/apk/debug/app-debug.apk \
+               "app/build/outputs/apk/debug/${APK_NAME}"
+            ASSETS=("app/build/outputs/apk/debug/${APK_NAME}")
+            NOTES="Debug build. Enable 'Install unknown apps' in Android settings to sideload."
+          fi
 
           if [ "${{ inputs.build-devtools }}" = "true" ]; then
             DEV_APK="${{ inputs.devtools-app-name }}-${{ env.VERSION }}-debug.apk"
@@ -110,4 +197,4 @@ jobs:
           gh release create "v${{ env.VERSION }}" \
             "${ASSETS[@]}" \
             --title "${{ inputs.app-name }} v${{ env.VERSION }}" \
-            --notes "Debug build. Enable 'Install unknown apps' in Android settings to sideload."
+            --notes "${NOTES}"

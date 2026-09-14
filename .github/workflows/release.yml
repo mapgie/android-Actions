@@ -32,6 +32,23 @@ on:
         required: false
         type: string
         default: ''
+      sign-release:
+        description: >
+          Build and publish a release-signed APK instead of a debug APK. Forwarded to
+          android-build-release.yml; the caller must also pass the RELEASE_* secrets
+          (`secrets: inherit`).
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      RELEASE_KEYSTORE_BASE64:
+        required: false
+      RELEASE_STORE_PASSWORD:
+        required: false
+      RELEASE_KEY_ALIAS:
+        required: false
+      RELEASE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: write
@@ -82,7 +99,7 @@ jobs:
     needs: prepare
     permissions:
       contents: write
-    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@95e7e8181942991d22128cd5d12bb8027bcdb90a
+    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@89382233c5dcf9e9d74d0c1685502b9f613ed568
     with:
       app-name: ${{ inputs.app-name }}
       ref: ${{ needs.prepare.outputs.sha }}
@@ -92,3 +109,5 @@ jobs:
       run-a11y-check: ${{ inputs.run-a11y-check }}
       build-devtools: ${{ inputs.build-devtools }}
       devtools-app-name: ${{ inputs.devtools-app-name }}
+      sign-release: ${{ inputs.sign-release }}
+    secrets: inherit

@@ -31,6 +31,14 @@ if `create-release` is true, creates a GitHub Release with the built APK(s).
 | `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
 | `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` if `create-release` is true |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
+| `sign-release` | no | `false` | Build `:app:assembleRelease` signed with the release keystore from the `RELEASE_*` secrets and publish that APK (named `<app-name>-<version>.apk`) instead of the debug APK. Pass `secrets: inherit`. Without the secrets the APK is debug-signed and `create-release` refuses to publish it |
+
+Secrets (all optional, only read when `sign-release` is true): `RELEASE_KEYSTORE_BASE64`
+(`base64 -w0 release.jks`), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and
+`RELEASE_KEY_PASSWORD`. The app's `build.gradle.kts` must read `RELEASE_STORE_FILE`,
+`RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD` from the
+environment for its release `signingConfig`, falling back to the debug key when they
+are absent.
 
 Requires `permissions: contents: write` in the caller and a
 `workflow_dispatch` + path-filtered `pull_request` trigger. Pass
@@ -92,6 +100,7 @@ expected. Requires the calling repo to have `consolidate_changelog.py` and
 | `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
 | `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
+| `sign-release` | no | `false` | Forwarded to `android-build-release.yml`; build and publish a release-signed APK. Pass `secrets: inherit` |
 
 ## Releasing
 
