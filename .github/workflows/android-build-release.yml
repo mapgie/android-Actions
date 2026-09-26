@@ -156,7 +156,7 @@ jobs:
         if: inputs.sign-release
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
-          APKSIGNER=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | sort -V | tail -n 1)
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --print-certs "$APK"
           if "$APKSIGNER" verify --print-certs "$APK" | grep -q 'CN=Android Debug'; then
             if [ "${{ inputs.create-release }}" = "true" ]; then
