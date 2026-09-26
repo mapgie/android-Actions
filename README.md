@@ -29,6 +29,7 @@ if `create-release` is true, creates a GitHub Release with the built APK(s).
 | `gradle-version` | no | `8.13` | Gradle version to install |
 | `cache-read-only` | no | `'false'` | Whether the Gradle cache is read-only (accepts an expression string) |
 | `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
+| `run-unit-tests` | no | `true` | Run `gradle :app:test`. Set `false` if the caller runs its unit tests in a separate job |
 | `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` if `create-release` is true |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
 | `sign-release` | no | `false` | Build `:app:assembleRelease` signed with the release keystore from the `RELEASE_*` secrets and publish that APK (named `<app-name>-<version>.apk`) instead of the debug APK. Pass `secrets: inherit`. Without the secrets the APK is debug-signed and `create-release` refuses to publish it |
