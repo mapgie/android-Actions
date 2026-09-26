@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,6 +20,5 @@ jobs:
       - uses: reviewdog/action-actionlint@ab7138020abfe6cd20b742c82e5b7a9749fb5884 # v1.75.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # github-pr-review needs a PR to comment on; other events report as a check run.
-          reporter: ${{ github.event_name == 'pull_request' && 'github-pr-review' || 'github-check' }}
+          reporter: github-pr-review
           fail_level: error
