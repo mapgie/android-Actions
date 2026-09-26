@@ -41,6 +41,13 @@ on:
         required: false
         type: boolean
         default: true
+      run-unit-tests:
+        description: >
+          Whether to run `gradle :app:test`. Set to false when the caller already
+          runs the unit tests in its own job, so they don't run twice.
+        required: false
+        type: boolean
+        default: true
       build-devtools:
         description: Whether to also build and release the :devtools:assembleDebug APK on workflow_dispatch.
         required: false
@@ -147,6 +154,7 @@ jobs:
           fi
 
       - name: Run unit tests
+        if: inputs.run-unit-tests
         run: gradle :app:test --no-daemon
 
       - name: Run lint
