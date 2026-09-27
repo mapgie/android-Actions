@@ -82,7 +82,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@d99437fe573b99a7730fd9dcc05c58535143eaf0 # v1
+      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@3be8dd368173a146e2355588bd3e1892ef4dd50f # v1
         with:
           ref: ${{ inputs.ref }}
           gradle-version: ${{ inputs.gradle-version }}
