@@ -32,7 +32,7 @@ jobs:
           languages: java-kotlin
           config-file: ${{ inputs.codeql-config-path }}
 
-      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@3be8dd368173a146e2355588bd3e1892ef4dd50f # v1
+      - uses: mapgie/android-Actions/.github/actions/setup-gradle-env@03a8dfd32ef0e703cc1506c1105bdb98f31a29cc # v1
         with:
           checkout: 'false'
           gradle-version: ${{ inputs.gradle-version }}
