@@ -48,7 +48,9 @@ previous behaviour of only releasing on manual dispatch.
 
 ### `codeql.yml`
 
-Runs CodeQL analysis for `java-kotlin`, building via Gradle.
+Runs CodeQL analysis for `java-kotlin`, building via Gradle with the build cache off
+(`--no-build-cache`), so the Kotlin compiler always runs and CodeQL sees the code
+even when a PR leaves the sources unchanged.
 
 | Input | Required | Default | Description |
 |---|---|---|---|
