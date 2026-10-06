@@ -99,7 +99,7 @@ jobs:
     needs: prepare
     permissions:
       contents: write
-    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@3be8dd368173a146e2355588bd3e1892ef4dd50f
+    uses: mapgie/android-Actions/.github/workflows/android-build-release.yml@03a8dfd32ef0e703cc1506c1105bdb98f31a29cc
     with:
       app-name: ${{ inputs.app-name }}
       ref: ${{ needs.prepare.outputs.sha }}
