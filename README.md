@@ -129,7 +129,14 @@ Checks out the repo (optional), installs JDK 17 + Gradle, and writes
 ## Keeping pins up to date
 
 - `.github/workflows/*.yml` in this repo are covered by
-  [Dependabot](.github/dependabot.yml) (`github-actions` ecosystem).
+  [Dependabot](.github/dependabot.yml) (`github-actions` ecosystem), except
+  for references to this repo itself (`mapgie/android-Actions/...@<sha>`).
+- Self-references are moved by hand. Dependabot would bump them on every
+  commit to `main`, and each merged bump starts a new round of bump PRs in
+  every caller. Instead, `check-self-pins.yml` runs on every push to `main`
+  that touches `.github/` (and weekly) and opens a tracking issue only when a
+  self-reference runs code that differs from `main`, naming the commit to
+  re-pin to. Pins of nested self-references are followed, not compared as text.
 - `.github/actions/*/action.yml` files are **not** scanned by Dependabot. The
   weekly `check-pinned-actions.yml` workflow checks these pins against the
   latest upstream release and opens/updates a tracking issue if any are

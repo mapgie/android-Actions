@@ -4,3 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # This repo's references to itself are moved by hand when the code they
+      # point at changes (check-self-pins.yml flags that). Dependabot would bump
+      # them on every commit to main, and each merged bump starts a new round
+      # of bump PRs in every repo that calls these workflows.
+      - dependency-name: "mapgie/android-Actions*"
