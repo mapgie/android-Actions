@@ -1,0 +1,56 @@
+name: Check self-references
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  schedule:
+    # Weekly, Monday 06:15 UTC
+    - cron: "15 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check self-references run the code on main
+        id: check
+        run: |
+          set +e
+          python3 scripts/check_self_pins.py
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Open or update tracking issue
+        if: steps.check.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Self-references to android-Actions run outdated code"
+          EXISTING=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --body-file self_pins.md
+          else
+            gh issue create --title "$TITLE" --body-file self_pins.md
+          fi
+
+      - name: Close stale tracking issue
+        if: steps.check.outputs.status == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Self-references to android-Actions run outdated code"
+          EXISTING=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "All self-references now run the same code as main."
+          fi
