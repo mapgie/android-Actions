@@ -1,0 +1,11 @@
+name: Accessibility role check
+description: >
+  Fails if any Compose .clickable / .combinedClickable modifier chain in
+  app/src/main/java lacks a .semantics { role = Role.* } declaration. Runs the
+  shared a11y_check.py that ships with this action against the checked-out
+  repository, so calling apps don't keep their own copy.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/a11y_check.py" --fails-only
