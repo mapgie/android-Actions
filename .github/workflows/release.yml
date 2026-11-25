@@ -18,7 +18,7 @@ on:
         type: string
         default: 'false'
       run-a11y-check:
-        description: Whether to run `python3 a11y_check.py --fails-only`.
+        description: Whether to run the shared accessibility role check (the a11y-check action).
         required: false
         type: boolean
         default: true
