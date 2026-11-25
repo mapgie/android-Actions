@@ -18,7 +18,7 @@ pinned to a commit SHA on this repo.
 
 ### `android-build-release.yml`
 
-Builds the debug APK, runs the accessibility check, unit tests and lint, and,
+Builds the debug APK, runs the accessibility role check, unit tests and lint, and,
 if `create-release` is true, creates a GitHub Release with the built APK(s).
 
 | Input | Required | Default | Description |
@@ -28,7 +28,7 @@ if `create-release` is true, creates a GitHub Release with the built APK(s).
 | `create-release` | no | `false` | Check the version is new, build release artifact(s), and create a GitHub Release |
 | `gradle-version` | no | `8.13` | Gradle version to install |
 | `cache-read-only` | no | `'false'` | Whether the Gradle cache is read-only (accepts an expression string) |
-| `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
+| `run-a11y-check` | no | `true` | Run the shared accessibility role check (the `a11y-check` action) |
 | `run-unit-tests` | no | `true` | Run `gradle :app:test`. Set `false` if the caller runs its unit tests in a separate job |
 | `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` if `create-release` is true |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
@@ -100,7 +100,7 @@ expected. Requires the calling repo to have `consolidate_changelog.py` and
 | `app-name` | yes | - | Display name used for the APK filename and GitHub Release title |
 | `gradle-version` | no | `8.13` | Gradle version to install |
 | `cache-read-only` | no | `'false'` | Whether the Gradle cache is read-only (accepts an expression string) |
-| `run-a11y-check` | no | `true` | Run `python3 a11y_check.py --fails-only` |
+| `run-a11y-check` | no | `true` | Run the shared accessibility role check (the `a11y-check` action) |
 | `build-devtools` | no | `false` | Also build/release `:devtools:assembleDebug` |
 | `devtools-app-name` | no | `''` | Display name for the devtools APK, required if `build-devtools` is true |
 | `sign-release` | no | `false` | Forwarded to `android-build-release.yml`; build and publish a release-signed APK. Pass `secrets: inherit` |
@@ -125,6 +125,21 @@ repos will detect the update and open a PR bumping the pinned SHA.
 Checks out the repo (optional), installs JDK 17 + Gradle, and writes
 `local.properties`. Used internally by `android-build-release.yml` and
 `codeql.yml`.
+
+### `a11y-check`
+
+Runs the shared `a11y_check.py` (shipped in the action's directory) from the
+caller's repository root. It fails if any Compose `.clickable` /
+`.combinedClickable` modifier chain under `app/src/main/java` lacks a
+`.semantics { role = Role.* }` declaration. Files that import Glance's
+`clickable` are skipped, since Glance has no semantics roles. Used by
+`android-build-release.yml` when `run-a11y-check` is true. Calling apps don't
+keep their own copy of the script. To run it locally, from an app's root with
+this repo cloned beside it:
+
+```sh
+python3 ../android-Actions/.github/actions/a11y-check/a11y_check.py
+```
 
 ## Keeping pins up to date
 
